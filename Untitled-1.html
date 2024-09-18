@@ -1,0 +1,498 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cut Up 2D</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bungee+Shade&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #FFE4E1, #FFC0CB);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        #gameTitle {
+            font-family: 'Bungee Shade', cursive;
+            font-size: 72px;
+            color: #FF1493;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.3);
+            margin-bottom: 30px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        #gameContainer {
+            text-align: center;
+            position: relative;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+        #gameContainer:hover {
+            transform: translateY(-5px);
+        }
+        #gameCanvas {
+            border: 3px solid #FF69B4;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(255,105,180,0.5);
+            display: none;
+        }
+        #homeScreen, #gameOverScreen {
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        #gameOverScreen {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation: fadeIn 0.5s;
+            z-index: 10;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        h1, h2 {
+            color: #FF1493;
+            font-size: 48px;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        #startButton, #restartButton {
+            background-color: #FF69B4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 18px;
+            cursor: pointer;
+            border-radius: 25px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(255,105,180,0.4);
+        }
+        #startButton:hover, #restartButton:hover {
+            background-color: #FF1493;
+            transform: translateY(-2px);
+            box-shadow: 0 7px 20px rgba(255,20,147,0.6);
+        }
+        #speedometer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 150px;
+            height: 150px;
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #FF1493;
+        }
+        #speedometerNeedle {
+            position: absolute;
+            width: 4px;
+            height: 70px;
+            background-color: #FF1493;
+            bottom: 75px;
+            left: 73px;
+            transform-origin: bottom center;
+            transition: transform 0.3s ease;
+        }
+        #pointCounter {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            display: none;
+        }
+        #pointCounter:hover {
+            transform: scale(1.05);
+        }
+        #nearMiss {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 36px;
+            font-weight: bold;
+            color: #FF1493;
+            opacity: 0;
+            transition: opacity 0.5s, transform 0.5s;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        #nearMiss.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1.2);
+        }
+    </style>
+</head>
+<body>
+    <h1 id="gameTitle">Cut Up 2D</h1>
+    <div id="gameContainer">
+        <div id="homeScreen">
+            <h1>Cut Up 2D</h1>
+            <button id="startButton">Start Game</button>
+        </div>
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="speedometer">
+            <div id="speedometerNeedle"></div>
+            <span id="speedValue">0 mph</span>
+        </div>
+        <div id="pointCounter">Points: 0</div>
+        <div id="nearMiss">NEAR MISS!</div>
+        <div id="gameOverScreen">
+            <h2>Game Over</h2>
+            <p id="finalScore"></p>
+            <button id="restartButton">Restart Game</button>
+        </div>
+    </div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const homeScreen = document.getElementById('homeScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const startButton = document.getElementById('startButton');
+        const restartButton = document.getElementById('restartButton');
+        const speedometer = document.getElementById('speedometer');
+        const speedometerNeedle = document.getElementById('speedometerNeedle');
+        const speedValue = document.getElementById('speedValue');
+        const pointCounter = document.getElementById('pointCounter');
+        const nearMissElement = document.getElementById('nearMiss');
+        const finalScoreElement = document.getElementById('finalScore');
+
+        const car = {
+            x: 375,
+            y: 450,
+            width: 50,
+            height: 100,
+            brakeLights: false
+        };
+
+        const road = {
+            y: 0,
+            speed: 3.22,  // Initial speed (20 mph)
+            minSpeed: 3.22,  // 20 mph
+            maxSpeed: 16.1,  // 100 mph
+            laneWidth: 100,
+            stripeHeight: 50,
+            stripeGap: 30
+        };
+
+        const keys = {};
+        let prevSpeed = road.speed;
+        let points = 0;
+        let lastPointUpdate = Date.now();
+        let gameOver = false;
+
+        // Traffic
+        const trafficCars = [];
+        const carColors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#00ffff', '#ff00ff'];
+        const lanes = [0, 1, 2, 3, 4, 5, 6, 7];
+        const minTrafficCars = 1; // Reduced from 2 to 1
+        const maxTrafficCars = 5; // Reduced from 7 to 5
+
+        function createTrafficCar() {
+            const availableLanes = lanes.filter(lane => !trafficCars.some(car => car.lane === lane && car.y < 0));
+            if (availableLanes.length === 0) return;
+
+            const lane = availableLanes[Math.floor(Math.random() * availableLanes.length)];
+            const trafficCar = {
+                x: lane * road.laneWidth + (road.laneWidth - car.width) / 2,
+                y: -car.height,  // Always start above the canvas
+                width: car.width,
+                height: car.height,
+                color: carColors[Math.floor(Math.random() * carColors.length)],
+                speed: Math.random() * 1.5 + 0.5, // Reduced speed range
+                lane: lane,
+                nearMissAwarded: false
+            };
+            trafficCars.push(trafficCar);
+        }
+
+        function updateTraffic() {
+            for (let i = trafficCars.length - 1; i >= 0; i--) {
+                trafficCars[i].y += trafficCars[i].speed + road.speed;
+                if (trafficCars[i].y > canvas.height) {
+                    trafficCars.splice(i, 1);
+                }
+            }
+
+            // Maintain traffic car count
+            const desiredCarCount = Math.floor(Math.random() * (maxTrafficCars - minTrafficCars + 1)) + minTrafficCars;
+            while (trafficCars.length < desiredCarCount) {
+                createTrafficCar();
+            }
+
+            // Ensure there's always a makeable gap
+            ensureMakeableGap();
+
+            // Check for collisions and near misses
+            trafficCars.forEach(trafficCar => {
+                const dx = car.x - trafficCar.x;
+                const dy = car.y - trafficCar.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < 60) { // Increased collision distance for easier gameplay
+                    gameOver = true;
+                } else if (distance < 100 && !trafficCar.nearMissAwarded) { // Increased near miss distance
+                    showNearMiss();
+                    trafficCar.nearMissAwarded = true;
+                }
+            });
+        }
+
+        function ensureMakeableGap() {
+            const playerLane = Math.floor(car.x / road.laneWidth);
+            const playerSpeed = road.speed;
+            const safeDistance = playerSpeed * 15; // Increased safe distance
+
+            const carsInPlayerLane = trafficCars.filter(tc => tc.lane === playerLane && tc.y > car.y - safeDistance && tc.y < car.y + car.height + safeDistance);
+
+            if (carsInPlayerLane.length > 1) {
+                carsInPlayerLane.sort((a, b) => a.y - b.y);
+                for (let i = 1; i < carsInPlayerLane.length; i++) {
+                    const gap = carsInPlayerLane[i].y - (carsInPlayerLane[i-1].y + carsInPlayerLane[i-1].height);
+                    if (gap < car.height * 2) { // Increased minimum gap
+                        carsInPlayerLane[i].y = carsInPlayerLane[i-1].y + carsInPlayerLane[i-1].height + car.height * 2;
+                    }
+                }
+            }
+
+            // Prevent cars from being on top of each other
+            for (let i = 0; i < trafficCars.length; i++) {
+                for (let j = i + 1; j < trafficCars.length; j++) {
+                    if (trafficCars[i].lane === trafficCars[j].lane) {
+                        const gap = Math.abs(trafficCars[i].y - trafficCars[j].y);
+                        if (gap < car.height * 1.5) {
+                            trafficCars[j].y = trafficCars[i].y + car.height * 1.5;
+                        }
+                    }
+                }
+            }
+        }
+
+        function showNearMiss() {
+            nearMissElement.classList.add('show');
+            setTimeout(() => {
+                nearMissElement.classList.remove('show');
+            }, 1000);
+            points += 100; // Add bonus points for near miss
+        }
+
+        function drawTraffic() {
+            trafficCars.forEach(trafficCar => {
+                ctx.fillStyle = trafficCar.color;
+                ctx.fillRect(trafficCar.x, trafficCar.y, trafficCar.width, trafficCar.height);
+                
+                // Windshield
+                ctx.fillStyle = '#4169E1';
+                ctx.fillRect(trafficCar.x + 5, trafficCar.y + 5, trafficCar.width - 10, trafficCar.height / 4);
+                
+                // Wheels
+                ctx.fillStyle = '#000';
+                ctx.fillRect(trafficCar.x - 5, trafficCar.y + 10, 5, 20);
+                ctx.fillRect(trafficCar.x + trafficCar.width, trafficCar.y + 10, 5, 20);
+                ctx.fillRect(trafficCar.x - 5, trafficCar.y + trafficCar.height - 30, 5, 20);
+                ctx.fillRect(trafficCar.x + trafficCar.width, trafficCar.y + trafficCar.height - 30, 5, 20);
+            });
+        }
+
+        function drawCar() {
+            // Car body
+            ctx.fillStyle = '#ff69b4';
+            ctx.fillRect(car.x, car.y, car.width, car.height);
+            
+            // Blue windshield
+            ctx.fillStyle = '#4169E1';
+            ctx.fillRect(car.x + 5, car.y + 5, car.width - 10, car.height / 4);
+            
+            // Wheels (black)
+            ctx.fillStyle = '#000';
+            ctx.fillRect(car.x - 5, car.y + 10, 5, 20);
+            ctx.fillRect(car.x + car.width, car.y + 10, 5, 20);
+            ctx.fillRect(car.x - 5, car.y + car.height - 30, 5, 20);
+            ctx.fillRect(car.x + car.width, car.y + car.height - 30, 5, 20);
+
+            // Brake lights
+            ctx.fillStyle = car.brakeLights ? '#ff0000' : '#660000';
+            ctx.fillRect(car.x, car.y + car.height - 10, car.width / 2 - 2, 5);
+            ctx.fillRect(car.x + car.width / 2 + 2, car.y + car.height - 10, car.width / 2 - 2, 5);
+        }
+
+        function drawRoad() {
+            // Draw road
+            ctx.fillStyle = '#333';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw lane markings
+            ctx.fillStyle = '#fff';
+            for (let x = road.laneWidth; x < canvas.width; x += road.laneWidth) {
+                for (let y = -road.stripeHeight; y < canvas.height; y += road.stripeHeight + road.stripeGap) {
+                    ctx.fillRect(x - 5, y + road.y, 10, road.stripeHeight);
+                }
+            }
+        }
+
+        function updateRoadPosition() {
+            road.y += road.speed;
+            if (road.y >= road.stripeHeight + road.stripeGap) {
+                road.y = 0;
+            }
+        }
+
+        function updateRoadSpeed() {
+            prevSpeed = road.speed;
+            if (keys['ArrowUp'] && road.speed < road.maxSpeed) {
+                road.speed += 0.05; // Reduced acceleration
+            }
+            if (keys['ArrowDown'] && road.speed > road.minSpeed) {
+                road.speed -= 0.05; // Reduced deceleration
+            }
+            road.speed = Math.max(road.minSpeed, Math.min(road.maxSpeed, road.speed));
+            updateSpeedometer();
+
+            // Update brake lights
+            car.brakeLights = road.speed < prevSpeed;
+        }
+
+        function updateSpeedometer() {
+            const speedMph = Math.round(road.speed * 6.21371 * 2); // Convert to mph (1 unit ≈ 6.21371 mph) and double it
+            speedValue.textContent = `${speedMph} mph`;
+            const angle = (speedMph / 200) * 180 - 90; // 200 mph max on the speedometer
+            speedometerNeedle.style.transform = `rotate(${angle}deg)`;
+        }
+
+        function updatePoints() {
+            if (!gameOver) {
+                const now = Date.now();
+                const deltaTime = (now - lastPointUpdate) / 1000; // Convert to seconds
+                const speedFactor = road.speed / road.maxSpeed;
+                const pointsToAdd = Math.round(150 * speedFactor * deltaTime); // Increased point gain
+                points += pointsToAdd;
+                pointCounter.textContent = `Points: ${points}`;
+                lastPointUpdate = now;
+            }
+        }
+
+        function updateCarPosition() {
+            if (keys['ArrowLeft'] && car.x > 0) car.x -= 4; // Increased movement speed
+            if (keys['ArrowRight'] && car.x < canvas.width - car.width) car.x += 4; // Increased movement speed
+            
+            // Ensure the car stays within the canvas
+            car.x = Math.max(0, Math.min(canvas.width - car.width, car.x));
+        }
+
+        function gameLoop() {
+            if (!gameOver) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                updateRoadPosition();
+                updateRoadSpeed();
+                drawRoad();
+                updateCarPosition();
+                updateTraffic();
+                drawTraffic();
+                drawCar();
+                updatePoints();
+                requestAnimationFrame(gameLoop);
+            } else {
+                showGameOver();
+            }
+        }
+
+        function showGameOver() {
+            canvas.style.display = 'none';
+            speedometer.style.display = 'none';
+            pointCounter.style.display = 'none';
+            gameOverScreen.style.display = 'block';
+            finalScoreElement.textContent = `Final Score: ${points}`;
+        }
+
+        function startGame() {
+            homeScreen.style.display = 'none';
+            gameOverScreen.style.display = 'none';
+            canvas.style.display = 'block';
+            speedometer.style.display = 'flex';
+            pointCounter.style.display = 'block';
+            // Ensure there's at least the minimum number of traffic cars at the start
+            while (trafficCars.length < minTrafficCars) {
+                createTrafficCar();
+            }
+            lastPointUpdate = Date.now();
+            gameOver = false;
+            points = 0;
+            car.x = 375;
+            car.y = 450;
+            road.speed = 3.22;
+            trafficCars.length = 0;
+            gameLoop();
+        }
+
+        document.addEventListener('keydown', (event) => {
+            keys[event.key] = true;
+        });
+
+        document.addEventListener('keyup', (event) => {
+            keys[event.key] = false;
+        });
+
+        startButton.addEventListener('click', startGame);
+        restartButton.addEventListener('click', startGame);
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
